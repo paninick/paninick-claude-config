@@ -25,10 +25,10 @@
 cd D:/ERP/RuoYi-Vue
 
 # 设置必须的环境变量（缺任何一个会启动失败）
-export JWT_SECRET="dev-secret-change-in-production-32chars!!"
+export JWT_SECRET="your_jwt_secret_here_at_least_32_chars"
 export DB_PASSWORD=""          # 本地 MySQL 无密码时留空
 export REDIS_PASSWORD=""       # 本地 Redis 无密码时留空
-export DRUID_PASSWORD="druid123"
+export DRUID_PASSWORD="your_druid_password_here"
 
 # 启动
 mvn spring-boot:run -pl ruoyi-admin
@@ -36,10 +36,10 @@ mvn spring-boot:run -pl ruoyi-admin
 
 **PowerShell 版本（Windows）：**
 ```powershell
-$env:JWT_SECRET    = "dev-secret-change-in-production-32chars!!"
+$env:JWT_SECRET    = "your_jwt_secret_here_at_least_32_chars"
 $env:DB_PASSWORD   = ""
 $env:REDIS_PASSWORD = ""
-$env:DRUID_PASSWORD = "druid123"
+$env:DRUID_PASSWORD = "your_druid_password_here"
 mvn spring-boot:run -pl ruoyi-admin
 ```
 
@@ -73,7 +73,7 @@ npm run dev        # 默认 8080，与后端冲突时改 vue.config.js port
 | `JWT_SECRET` | JWT 签名密钥 | 无（必须设置） | 32+ 字符随机串，**禁止使用默认值** |
 | `DB_PASSWORD` | MySQL 密码 | `""` (空) | 生产环境必须设置强密码 |
 | `REDIS_PASSWORD` | Redis 密码 | `""` (空) | 生产环境必须设置 |
-| `DRUID_PASSWORD` | Druid 监控密码 | `druid123` | 生产环境必须修改 |
+| `DRUID_PASSWORD` | Druid 监控密码 | `your_druid_password_here` | 生产环境必须修改 |
 | `DB_HOST` | MySQL 地址 | `localhost` | 生产环境填实际地址 |
 | `DB_PORT` | MySQL 端口 | `3306` | — |
 | `DB_NAME` | 数据库名 | `ry-vue` | — |
