@@ -1,0 +1,25 @@
+{
+  "description": "ERP 治理体系 · Claude Code 平台级 hooks v1",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "command": "bash .claude/hooks/scripts/pre-bash-check.sh",
+        "description": "[M-SE03] 阻断 git push --force / rm -rf / chmod 777 等危险命令"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "command": "bash .claude/hooks/scripts/post-edit-check.sh",
+        "description": "每次写文件后检查: 密钥硬编码 / SQL注入 / TODO标记 / 注释代码"
+      }
+    ],
+    "Stop": [
+      {
+        "command": "bash .claude/hooks/scripts/stop-check.sh",
+        "description": "会话结束前检查 session-handoff 更新 + P0 审计状态"
+      }
+    ]
+  }
+}

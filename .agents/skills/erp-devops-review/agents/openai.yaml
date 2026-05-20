@@ -1,0 +1,4 @@
+interface:
+  display_name: "ERP DevOps Review"
+  short_description: "Audit ERP deployment, config, logs, and release readiness"
+  default_prompt: "Use $erp-devops-review to audit ERP deployment, configuration, observability, and release readiness."

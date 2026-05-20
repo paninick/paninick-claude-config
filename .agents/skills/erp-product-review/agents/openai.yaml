@@ -1,0 +1,4 @@
+interface:
+  display_name: "ERP Product Review"
+  short_description: "Review ERP completion, drift, scope, and roadmap quality"
+  default_prompt: "Use $erp-product-review to review ERP completion, deviation, scope control, and roadmap quality."
