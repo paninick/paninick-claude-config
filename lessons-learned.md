@@ -1,0 +1,156 @@
+# 跨项目经验教训
+
+> 从 ERP（针织服装工贸一体）和样衣项目实战中提炼的经验。
+> 最后更新：2026-05-20
+
+---
+
+## 一、数据库与 SQL
+
+### 踩坑
+
+| # | 问题 | 触发场景 | 解决方案 | 来源 |
+|---|------|---------|---------|------|
+| 1 | `REPLACE INTO` 导致自增ID跳跃+外键级联删除 | "存在则更新"需求 | 用 `INSERT ... ON DUPLICATE KEY UPDATE` | ERP Wave4 |
+| 2 | Mapper XML `<update>` 缺 `<set>` 标签 → SQL语法错误 | 动态更新字段 | `<update>` 内必须包 `<set>` | ERP Phase29 |
+| 3 | `double/float` 金额精度丢失 | Domain类定义 | 金额字段必须 `BigDecimal`，数据库用 `DECIMAL(15,4)` | ERP Phase29 |
+| 4 | `${}` SQL注入风险 | 动态SQL条件 | 用户输入用 `#{}`，动态表名/列名用白名单枚举 | ERP Phase29 |
+| 5 | DDL脚本不幂等 → 重复执行报错 | 迁移脚本 | `CREATE TABLE IF NOT EXISTS` + `ADD COLUMN IF NOT EXISTS` | ERP Phase12 |
+| 6 | 修改已有脚本而非新建 → 历史不可追溯 | 紧急修复 | 只写新脚本，禁止修改已执行脚本 | ERP 规范 |
+| 7 | `parameterType="String"` 写错 → 类型推断失败 | Mapper定义 | 可省略 parameterType（MyBatis3自动推断） | ERP Wave4 |
+
+### 最佳实践
+
+- **迁移脚本命名**：`phase{N}_{描述}.sql`，按顺序执行
+- **字典先行**：建表前先建 `sys_dict_type` + `sys_dict_data`
+- **审计字段必带**：`create_by/create_time/update_by/update_time/del_flag`
+- **逻辑删除**：`del_flag='2'`，禁止物理删除业务数据
+
+---
+
+## 二、Spring Boot 后端
+
+### 踩坑
+
+| # | 问题 | 解决方案 | 来源 |
+|---|------|---------|------|
+| 1 | Controller写业务逻辑 → 难测试难维护 | Controller只做入参校验+转发，业务在Service | ERP AR01 |
+| 2 | 多表写操作无事务 → 数据不一致 | `@Transactional(rollbackFor = Exception.class)` | ERP AR02 |
+| 3 | `System.out.println` / `e.printStackTrace()` | 用 `DemoLogUtil` 统一日志 | ERP 规范 |
+| 4 | 端点缺权限注解 → 任何人可访问 | `@PreAuthorize("@ss.hasPermi('erp:module:action')")` | ERP Phase29 |
+| 5 | JDK < 17 → 启动报错 | JDK 17 必须 | ERP运维 |
+| 6 | 环境变量缺失 → 启动失败 | JWT_SECRET/DB_PASSWORD/REDIS_PASSWORD 必设 | ERP运维 |
+| 7 | ruoyi-framework/ 被改 → 框架不稳定 | 禁止修改框架层，业务在 ruoyi-demo/ | ERP铁律 |
+
+### 最佳实践
+
+- **模块结构**：domain/mapper/service/controller 四层分离
+- **业务动词接口**：`/erp/{module}/{id}/submit` 而非 `/erp/{module}/submit?id=`
+- **错误码**：`DemoErrorCode.java` 统一定义（1000-9999范围）
+- **返回值统一**：`AjaxResult` 或 `TableDataInfo`
+
+---
+
+## 三、前端（React/Vue）
+
+### 踩坑
+
+| # | 问题 | 解决方案 | 来源 |
+|---|------|---------|------|
+| 1 | 金额显示原始字符串 `12345.678900` | `toFixed(2)` 或全局过滤器 `{{ value | money }}` | ERP Phase29 |
+| 2 | 文件名不规范 → 难搜索 | PascalCase命名（`LossControl.vue`） | ERP规范 |
+| 3 | 表单缺校验 → 数据质量差 | `:rules` 必带 `required: true` | ERP规范 |
+| 4 | Vue2前端与后端端口冲突 | 改 `vue.config.js` port | ERP运维 |
+
+### 最佳实践
+
+- **API文件**：每模块 `src/api/erp/{module}.js`
+- **金额格式化**：全局 `money` filter 或 `formatCurrency()` 工具函数
+- **组件命名**：PascalCase，与模块对应
+
+---
+
+## 四、样衣/打样项目
+
+### 踩坑
+
+| # | 问题 | 解决方案 | 来源 |
+|---|------|---------|------|
+| 1 | 样衣通知单字段缺失 → 打样信息不完整 | 样衣通知必须包含：款号/颜色/尺码/面料/工艺要求/交期 | 样衣项目 |
+| 2 | 打样进度无追踪 → 不知道样衣到哪一步 | 样衣流程状态：待确认→已下发→打样中→完成→评审→通过/不通过 | 样衣项目 |
+| 3 | 样衣评审结果未反馈到销售 → 客户不知道 | 评审结果自动同步到销售订单行 | 样衣项目 |
+| 4 | 多次打样无版本管理 → 不知道是第几版 | 样衣编号含版本号：KN-{年份}-{序号}-{版本} | 样衣项目 |
+| 5 | 工艺路线与样衣路线混淆 → 生产走错流程 | 样衣路线独立于大货路线，打样完成后才转大货工艺 | 样衣项目 |
+
+### 最佳实践
+
+- **样衣编号格式**：`KN-2026-S-001-A-02`（年份-类型-序号-客户-版本）
+- **样衣→大货转换门禁**：样衣评审通过后才允许创建大货BOM和工艺路线
+- **打样成本归集**：样衣成本单独核算，不混入大货成本
+- **客户确认流程**：样衣图片+工艺单→客户确认→大货下单
+
+---
+
+## 五、运维与部署
+
+### 踩坑
+
+| # | 问题 | 解决方案 | 来源 |
+|---|------|---------|------|
+| 1 | 多实例启动 → 端口冲突 | 启动前杀旧进程，单实例运行 | ERP运维 |
+| 2 | Redis未启动 → 后端报错 | 先检查Redis再启动后端 | ERP运维 |
+| 3 | MySQL字符集不匹配 → 中文乱码 | `characterEncoding=utf8` + `useUnicode=true` | ERP运维 |
+| 4 | Druid监控面板无密码 → 安全风险 | `DRUID_PASSWORD` 环境变量 | ERP运维 |
+| 5 | 日志级别过高 → 性能问题 | 生产环境 INFO，开发 DEBUG | ERP运维 |
+
+### 最佳实践
+
+- **环境变量化**：所有密码/密钥通过环境变量注入，禁止硬编码
+- **健康检查**：`wget -qO- http://localhost:8080/login` 验证后端存活
+- **启动顺序**：MySQL → Redis → 后端 → 前端
+
+---
+
+## 六、AI 编码治理
+
+### 核心方法论
+
+1. **规范驱动开发 (SDD)**：需求→写Spec→确认→生成→验收。跳过Spec直接生成的代码可用率<30%
+2. **模式复用优先**：新功能必须找项目中已有类似实现作为参考
+3. **审计修复流程**：收到报告→读AUDIT_TRACKER→逐条修复→独立验证→关单
+4. **禁止自验自宣告**：修复验证必须在独立session中完成
+
+### 规则体系
+
+- **强制 [M]**：违反即阻断PR
+- **建议 [S]**：警告但不阻断
+- **参考 [C]**：最佳实践参考
+
+### 关键禁止行为
+
+- 禁止无Spec确认就写代码
+- 禁止修改框架层（ruoyi-framework/）
+- 禁止自验自宣告修复通过
+- 禁止带着OPEN P0开始新功能开发
+- 禁止修复时scope creep
+
+---
+
+## 七、数据脱敏与发布
+
+### 踩坑
+
+| # | 问题 | 解决方案 | 来源 |
+|---|------|---------|------|
+| 1 | 发布版含真实工厂名/客户名 | 工厂→示例工厂，客户→示例客户 | ERP脱敏 |
+| 2 | SQL含真实手机号/邮箱 | 手机→1380000XXXXX，邮箱→demo@erp.local | ERP脱敏 |
+| 3 | 配置文件硬编码密码 | 全部环境变量化 + .env.example模板 | ERP脱敏 |
+| 4 | .gitignore拦截.env.example | 加 `!.env.example` 例外规则 | ERP脱敏 |
+| 5 | submodule只含指针不含代码 | ZIP包才是完整交付物 | ERP发布 |
+
+### 最佳实践
+
+- **脱敏清单**：工厂名/客户名/手机号/邮箱/地址/人名/密码
+- **排除清单**：temp_*/backup/external/node_modules/target/dist/logs
+- **ZIP包**：解压即用，含 startup.bat + .env.example + README
+- **验证**：脱敏后用正则扫描确认无真实隐私数据残留

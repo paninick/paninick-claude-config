@@ -7,6 +7,12 @@ import os
 import re
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 ROOT = os.path.join(os.path.dirname(__file__), "../../../RuoYi-Vue")
 DEMO_DIR = os.path.join(ROOT, "ruoyi-demo/src/main/java")
 UI_DIR = os.path.join(ROOT, "ruoyi-ui/src/views/erp")
